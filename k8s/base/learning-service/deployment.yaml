@@ -1,0 +1,110 @@
+# =============================================================================
+# Déploiement du Learning Service - Gestion des leçons et tutoriels
+# =============================================================================
+# Ce service gère :
+#   - Les cours et leçons de résolution du Rubik's Cube
+#   - Le suivi de progression des utilisateurs
+#   - Les algorithmes et méthodes (CFOP, Roux, etc.)
+# Stockage : MongoDB pour la flexibilité des contenus pédagogiques
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learning-service
+  namespace: cube
+  labels:
+    app: learning-service
+    tier: backend
+    app.kubernetes.io/name: learning-service
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: backend
+spec:
+  # 2 réplicas pour la haute disponibilité
+  replicas: 2
+  selector:
+    matchLabels:
+      app: learning-service
+  template:
+    metadata:
+      labels:
+        app: learning-service
+        tier: backend
+    spec:
+      serviceAccountName: learning-service-sa
+      containers:
+        - name: learning-service
+          image: cube-learning-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            # Port HTTP pour l'API REST
+            - containerPort: 8002
+              name: http
+              protocol: TCP
+          env:
+            # --- Configuration générale (depuis ConfigMap) ---
+            - name: SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: learning-service-config
+                  key: SERVICE_PORT
+            - name: SERVICE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: learning-service-config
+                  key: SERVICE_ENV
+            # --- Secrets (depuis Secret) ---
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: learning-service-secret
+                  key: MONGO_URI
+          # Sonde de vivacité
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          # Sonde de disponibilité
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          # Limites de ressources
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+---
+# ConfigMap pour le learning-service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: learning-service-config
+  namespace: cube
+  labels:
+    app: learning-service
+data:
+  SERVICE_PORT: "8002"
+  SERVICE_ENV: "production"
+  LOG_LEVEL: "info"
+---
+# Secret pour le learning-service
+# ⚠️ EXEMPLE UNIQUEMENT - Remplacer en production
+apiVersion: v1
+kind: Secret
+metadata:
+  name: learning-service-secret
+  namespace: cube
+  labels:
+    app: learning-service
+type: Opaque
+data:
+  # echo -n 'mongodb://cube_user:cube_pass@mongo:27017/cube_learning' | base64
+  MONGO_URI: bW9uZ29kYjovL2N1YmVfdXNlcjpjdWJlX3Bhc3NAbW9uZ286MjcwMTcvY3ViZV9sZWFybmluZw==

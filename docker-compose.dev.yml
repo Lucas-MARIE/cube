@@ -1,0 +1,64 @@
+# ============================================================
+# Cube.com - Docker Compose Development Overrides
+# Mounts source code as volumes for hot-reload during development.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # Frontend - Dev server with hot module replacement
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/src:/app/src:delegated
+      - ./frontend/public:/app/public:delegated
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=development
+
+  # ----------------------------------------------------------
+  # User Service - Uvicorn with --reload
+  # ----------------------------------------------------------
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/user-service/app:/app/app:delegated
+      - ./services/user-service/tests:/app/tests:delegated
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+
+  # ----------------------------------------------------------
+  # Learning Service - Uvicorn with --reload
+  # ----------------------------------------------------------
+  learning-service:
+    build:
+      context: ./services/learning-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/learning-service/app:/app/app:delegated
+      - ./services/learning-service/tests:/app/tests:delegated
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+
+  # ----------------------------------------------------------
+  # Session Service - Uvicorn with --reload
+  # ----------------------------------------------------------
+  session-service:
+    build:
+      context: ./services/session-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/session-service/app:/app/app:delegated
+      - ./services/session-service/tests:/app/tests:delegated
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug

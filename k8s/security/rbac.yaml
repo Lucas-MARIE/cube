@@ -1,0 +1,163 @@
+# =============================================================================
+# RBAC (Role-Based Access Control) - Contrôle d'accès basé sur les rôles
+# =============================================================================
+# Principe du moindre privilège : chaque service n'a accès qu'aux
+# ressources Kubernetes strictement nécessaires à son fonctionnement.
+# Cela limite l'impact d'une compromission d'un pod.
+
+# --- ServiceAccounts ---
+# Chaque microservice a son propre ServiceAccount pour l'isolation
+
+# Compte de service pour le user-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service-sa
+  namespace: cube
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: cube
+---
+# Compte de service pour le learning-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: learning-service-sa
+  namespace: cube
+  labels:
+    app: learning-service
+    app.kubernetes.io/part-of: cube
+---
+# Compte de service pour le session-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: session-service-sa
+  namespace: cube
+  labels:
+    app: session-service
+    app.kubernetes.io/part-of: cube
+
+---
+# =============================================================================
+# Rôles avec permissions minimales
+# =============================================================================
+
+# Rôle pour le user-service
+# Permissions : lire les ConfigMaps et Secrets de son propre service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: user-service-role
+  namespace: cube
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: cube
+rules:
+  # Accès en lecture aux ConfigMaps (configuration)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["user-service-config"]
+    verbs: ["get", "watch"]
+  # Accès en lecture aux Secrets (credentials)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["user-service-secret"]
+    verbs: ["get"]
+---
+# Rôle pour le learning-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: learning-service-role
+  namespace: cube
+  labels:
+    app: learning-service
+    app.kubernetes.io/part-of: cube
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["learning-service-config"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["learning-service-secret"]
+    verbs: ["get"]
+---
+# Rôle pour le session-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: session-service-role
+  namespace: cube
+  labels:
+    app: session-service
+    app.kubernetes.io/part-of: cube
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["session-service-config"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["session-service-secret"]
+    verbs: ["get"]
+
+---
+# =============================================================================
+# RoleBindings - Liaison entre ServiceAccounts et Rôles
+# =============================================================================
+
+# Liaison pour le user-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: user-service-binding
+  namespace: cube
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: cube
+subjects:
+  - kind: ServiceAccount
+    name: user-service-sa
+    namespace: cube
+roleRef:
+  kind: Role
+  name: user-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Liaison pour le learning-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: learning-service-binding
+  namespace: cube
+  labels:
+    app: learning-service
+    app.kubernetes.io/part-of: cube
+subjects:
+  - kind: ServiceAccount
+    name: learning-service-sa
+    namespace: cube
+roleRef:
+  kind: Role
+  name: learning-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Liaison pour le session-service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: session-service-binding
+  namespace: cube
+  labels:
+    app: session-service
+    app.kubernetes.io/part-of: cube
+subjects:
+  - kind: ServiceAccount
+    name: session-service-sa
+    namespace: cube
+roleRef:
+  kind: Role
+  name: session-service-role
+  apiGroup: rbac.authorization.k8s.io

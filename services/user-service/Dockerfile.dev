@@ -1,0 +1,29 @@
+# =============================================================================
+# Cube.com - User Service | Dockerfile de développement
+# Image avec hot-reload pour le développement local
+# =============================================================================
+
+FROM python:3.12-slim
+
+LABEL maintainer="Cube.com Team"
+LABEL service="user-service-dev"
+
+# Installer les dépendances système
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Installer les dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code source
+COPY . .
+
+# Exposer le port du service
+EXPOSE 8001
+
+# Lancer avec hot-reload pour le développement
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]

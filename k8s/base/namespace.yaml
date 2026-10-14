@@ -1,0 +1,15 @@
+# =============================================================================
+# Namespace Cube - Espace de noms principal pour tous les services
+# =============================================================================
+# Ce namespace isole toutes les ressources du projet Cube.com
+# L'injection Istio est activée pour le mTLS automatique entre services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cube
+  labels:
+    # Active l'injection automatique du sidecar Istio dans tous les pods
+    istio-injection: enabled
+    # Labels pour l'identification et le filtrage
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/managed-by: kustomize

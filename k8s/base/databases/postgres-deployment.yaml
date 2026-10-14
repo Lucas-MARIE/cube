@@ -1,0 +1,103 @@
+# =============================================================================
+# Déploiement PostgreSQL - Base de données relationnelle
+# =============================================================================
+# PostgreSQL stocke les données structurées :
+#   - Utilisateurs (user-service)
+#   - Sessions et historique des solves (session-service)
+# ⚠️ En production, utiliser un opérateur PostgreSQL (CloudNativePG, Zalando)
+#    ou un service managé (RDS, Cloud SQL)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: cube
+  labels:
+    app: postgres
+    tier: database
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: database
+spec:
+  # ⚠️ Une seule réplica pour PostgreSQL (pas de clustering natif)
+  # Pour la HA, utiliser un opérateur comme CloudNativePG
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  # Stratégie Recreate pour éviter les conflits de volume
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: database
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+              protocol: TCP
+          env:
+            # Identifiants PostgreSQL depuis le Secret
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            # Répertoire des données PostgreSQL dans le volume
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # Montage du volume persistant pour les données
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          # Sonde de vivacité via pg_isready
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - cube_user
+                - -d
+                - cube_db
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          # Sonde de disponibilité
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - cube_user
+                - -d
+                - cube_db
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      # Définition du volume à partir du PVC
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

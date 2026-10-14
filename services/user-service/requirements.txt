@@ -1,0 +1,32 @@
+# =============================================================================
+# Cube.com - User Service | Dépendances Python
+# =============================================================================
+
+# Framework web
+fastapi[standard]==0.115.0
+uvicorn[standard]==0.30.0
+
+# Base de données PostgreSQL (async)
+sqlalchemy[asyncio]==2.0.35
+asyncpg==0.30.0
+alembic==1.13.0
+
+# Configuration
+pydantic-settings==2.5.0
+
+# Authentification JWT
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Client HTTP
+httpx==0.27.0
+
+# Communication gRPC inter-services
+grpcio==1.66.0
+grpcio-tools==1.66.0
+protobuf==5.28.0
+
+# Tests
+pytest==8.3.0
+pytest-asyncio==0.24.0
+aiosqlite==0.20.0

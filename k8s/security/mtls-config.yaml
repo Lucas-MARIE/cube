@@ -1,0 +1,131 @@
+# =============================================================================
+# Configuration mTLS avec Istio - Chiffrement du trafic inter-services
+# =============================================================================
+# Le mTLS (mutual TLS) assure que :
+#   - Tout le trafic entre pods est chiffré
+#   - L'identité de chaque service est vérifiée par certificat
+#   - Aucun service non-autorisé ne peut intercepter les communications
+#
+# ⚠️ PRÉREQUIS : Istio doit être installé dans le cluster
+#   Installation : istioctl install --set profile=demo
+#   Vérification : istioctl verify-install
+#
+# Pour activer, décommenter les ressources ci-dessous et appliquer avec :
+#   kubectl apply -f mtls-config.yaml
+
+# ---
+# # =============================================================================
+# # PeerAuthentication - Active le mTLS strict pour tout le namespace cube
+# # =============================================================================
+# # Mode STRICT = seul le trafic mTLS est accepté (pas de texte clair)
+# # Mode PERMISSIVE = accepte mTLS et texte clair (pour la migration)
+# apiVersion: security.istio.io/v1beta1
+# kind: PeerAuthentication
+# metadata:
+#   name: cube-mtls
+#   namespace: cube
+#   labels:
+#     app.kubernetes.io/part-of: cube
+# spec:
+#   # Active le mTLS strict pour tous les pods du namespace
+#   mtls:
+#     mode: STRICT
+#
+# ---
+# # =============================================================================
+# # DestinationRule - Force l'utilisation de mTLS pour les connexions sortantes
+# # =============================================================================
+# # Assure que les sidecars Envoy utilisent le mTLS pour communiquer
+# apiVersion: networking.istio.io/v1beta1
+# kind: DestinationRule
+# metadata:
+#   name: cube-mtls-destination
+#   namespace: cube
+#   labels:
+#     app.kubernetes.io/part-of: cube
+# spec:
+#   # Appliqué à tous les services du namespace
+#   host: "*.cube.svc.cluster.local"
+#   trafficPolicy:
+#     tls:
+#       mode: ISTIO_MUTUAL
+#
+# ---
+# # =============================================================================
+# # AuthorizationPolicy - Contrôle d'accès au niveau service
+# # =============================================================================
+# # Définit quels services peuvent communiquer entre eux via Istio
+#
+# # Le user-service accepte les requêtes du session-service et de l'ingress
+# apiVersion: security.istio.io/v1beta1
+# kind: AuthorizationPolicy
+# metadata:
+#   name: user-service-authz
+#   namespace: cube
+# spec:
+#   selector:
+#     matchLabels:
+#       app: user-service
+#   action: ALLOW
+#   rules:
+#     # Autoriser les appels gRPC depuis session-service
+#     - from:
+#         - source:
+#             principals:
+#               - "cluster.local/ns/cube/sa/session-service-sa"
+#       to:
+#         - operation:
+#             ports: ["50051"]
+#     # Autoriser le trafic HTTP depuis l'ingress gateway
+#     - from:
+#         - source:
+#             namespaces:
+#               - "istio-system"
+#               - "ingress-nginx"
+#       to:
+#         - operation:
+#             ports: ["8001"]
+#
+# ---
+# # Le learning-service accepte uniquement les requêtes depuis l'ingress
+# apiVersion: security.istio.io/v1beta1
+# kind: AuthorizationPolicy
+# metadata:
+#   name: learning-service-authz
+#   namespace: cube
+# spec:
+#   selector:
+#     matchLabels:
+#       app: learning-service
+#   action: ALLOW
+#   rules:
+#     - from:
+#         - source:
+#             namespaces:
+#               - "istio-system"
+#               - "ingress-nginx"
+#       to:
+#         - operation:
+#             ports: ["8002"]
+#
+# ---
+# # Le session-service accepte les requêtes depuis l'ingress
+# apiVersion: security.istio.io/v1beta1
+# kind: AuthorizationPolicy
+# metadata:
+#   name: session-service-authz
+#   namespace: cube
+# spec:
+#   selector:
+#     matchLabels:
+#       app: session-service
+#   action: ALLOW
+#   rules:
+#     - from:
+#         - source:
+#             namespaces:
+#               - "istio-system"
+#               - "ingress-nginx"
+#       to:
+#         - operation:
+#             ports: ["8003"]

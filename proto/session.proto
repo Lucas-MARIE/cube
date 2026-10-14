@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package cube.session;
+
+// Service de gestion des sessions et matchmaking
+service SessionService {
+  // Démarre une session solo
+  rpc StartSoloSession (StartSessionRequest) returns (SessionResponse);
+  // Enregistre un temps de résolution
+  rpc RecordSolve (RecordSolveRequest) returns (SolveResponse);
+  // Rejoint la file de matchmaking
+  rpc JoinMatchmaking (JoinMatchmakingRequest) returns (MatchResponse);
+}
+
+message StartSessionRequest {
+  string user_id = 1;
+  string scramble = 2;
+}
+
+message SessionResponse {
+  string session_id = 1;
+  string scramble = 2;
+  int64 started_at = 3;
+}
+
+message RecordSolveRequest {
+  string session_id = 1;
+  string user_id = 2;
+  int32 solve_time_ms = 3;
+}
+
+message SolveResponse {
+  bool success = 1;
+  int32 solve_time_ms = 2;
+  bool is_personal_best = 3;
+}
+
+message JoinMatchmakingRequest {
+  string user_id = 1;
+  int32 rating = 2;
+  string game_mode = 3; // "ranked" or "casual"
+}
+
+message MatchResponse {
+  string match_id = 1;
+  string opponent_id = 2;
+  string opponent_username = 3;
+  string scramble = 4;
+}

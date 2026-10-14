@@ -1,0 +1,132 @@
+# =============================================================================
+# Déploiement du User Service - Gestion des utilisateurs et authentification
+# =============================================================================
+# Ce service gère :
+#   - L'inscription et la connexion des utilisateurs
+#   - La validation des tokens JWT
+#   - Les profils et statistiques utilisateur
+# Communication : REST (externe) + gRPC (inter-services, port 50051)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: cube
+  labels:
+    app: user-service
+    tier: backend
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: backend
+spec:
+  # 2 réplicas pour la haute disponibilité
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        tier: backend
+    spec:
+      # Compte de service dédié pour le RBAC
+      serviceAccountName: user-service-sa
+      containers:
+        - name: user-service
+          image: cube-user-service:latest
+          # Ne jamais utiliser 'Always' en prod sans tag spécifique
+          imagePullPolicy: IfNotPresent
+          ports:
+            # Port HTTP pour l'API REST
+            - containerPort: 8001
+              name: http
+              protocol: TCP
+            # Port gRPC pour la communication inter-services
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          # Variables d'environnement depuis ConfigMap et Secret
+          env:
+            # --- Configuration générale (depuis ConfigMap) ---
+            - name: SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: user-service-config
+                  key: SERVICE_PORT
+            - name: SERVICE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: user-service-config
+                  key: SERVICE_ENV
+            # --- Secrets (depuis Secret) ---
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: JWT_SECRET
+          # Sonde de vivacité - redémarre le pod si le service ne répond plus
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            # Attendre 30s avant de commencer les vérifications
+            initialDelaySeconds: 30
+            # Vérifier toutes les 10 secondes
+            periodSeconds: 10
+            # Considérer comme mort après 3 échecs consécutifs
+            failureThreshold: 3
+          # Sonde de disponibilité - retire le pod du load balancer si indisponible
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          # Limites de ressources pour éviter la surconsommation
+          resources:
+            requests:
+              # Ressources minimales garanties
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              # Ressources maximales autorisées
+              memory: "256Mi"
+              cpu: "250m"
+---
+# ConfigMap pour la configuration non-sensible du user-service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: cube
+  labels:
+    app: user-service
+data:
+  SERVICE_PORT: "8001"
+  SERVICE_ENV: "production"
+  GRPC_PORT: "50051"
+  LOG_LEVEL: "info"
+---
+# Secret pour les données sensibles du user-service
+# ⚠️ EXEMPLE UNIQUEMENT - Remplacer par de vrais secrets en production
+# En production, utiliser un gestionnaire de secrets (Vault, Sealed Secrets, etc.)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secret
+  namespace: cube
+  labels:
+    app: user-service
+type: Opaque
+data:
+  # Valeurs encodées en base64 - CE SONT DES EXEMPLES
+  # echo -n 'postgresql://cube_user:cube_pass@postgres:5432/cube_db' | base64
+  DATABASE_URL: cG9zdGdyZXNxbDovL2N1YmVfdXNlcjpjdWJlX3Bhc3NAcG9zdGdyZXM6NTQzMi9jdWJlX2Ri
+  # echo -n 'super-secret-jwt-key-change-me' | base64
+  JWT_SECRET: c3VwZXItc2VjcmV0LWp3dC1rZXktY2hhbmdlLW1l

@@ -1,0 +1,199 @@
+# ============================================================
+# Cube.com - Docker Compose (Production-like)
+# Orchestrates all microservices, databases, and the gateway.
+# Usage: docker compose up -d
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # Frontend - React SPA served via Nginx
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cube-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    env_file: .env
+    depends_on:
+      nginx-gateway:
+        condition: service_started
+    networks:
+      - cube-network
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # User Service - FastAPI (auth, profiles, stats)
+  # ----------------------------------------------------------
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: cube-user-service
+    ports:
+      - "${USER_SERVICE_PORT:-8001}:8001"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # Learning Service - FastAPI (lessons, algorithms, scrambles)
+  # ----------------------------------------------------------
+  learning-service:
+    build:
+      context: ./services/learning-service
+      dockerfile: Dockerfile
+    container_name: cube-learning-service
+    ports:
+      - "${LEARNING_SERVICE_PORT:-8002}:8002"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # Session Service - FastAPI (timer, sessions, history)
+  # ----------------------------------------------------------
+  session-service:
+    build:
+      context: ./services/session-service
+      dockerfile: Dockerfile
+    container_name: cube-session-service
+    ports:
+      - "${SESSION_SERVICE_PORT:-8003}:8003"
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # PostgreSQL - User data store
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: cube-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cube_users}
+      POSTGRES_USER: ${POSTGRES_USER:-cube}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cube} -d ${POSTGRES_DB:-cube_users}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # MongoDB - Learning content store
+  # ----------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    container_name: cube-mongodb
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # Redis - Session store and caching
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: cube-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - cube-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------
+  # Nginx Gateway - API reverse proxy & routing
+  # ----------------------------------------------------------
+  nginx-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: cube-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      user-service:
+        condition: service_healthy
+      learning-service:
+        condition: service_healthy
+      session-service:
+        condition: service_healthy
+    networks:
+      - cube-network
+    restart: unless-stopped
+
+# ----------------------------------------------------------
+# Persistent volumes for databases
+# ----------------------------------------------------------
+volumes:
+  postgres-data:
+    driver: local
+  mongo-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# ----------------------------------------------------------
+# Shared network for inter-service communication
+# ----------------------------------------------------------
+networks:
+  cube-network:
+    driver: bridge

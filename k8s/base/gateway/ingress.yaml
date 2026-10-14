@@ -1,0 +1,100 @@
+# =============================================================================
+# Ingress - Point d'entrée unique pour le trafic externe
+# =============================================================================
+# L'Ingress Nginx route le trafic vers les bons services selon le chemin URL
+# Il gère aussi :
+#   - Le CORS (Cross-Origin Resource Sharing)
+#   - Les WebSockets (pour le matchmaking temps réel)
+#   - La réécriture des URLs
+#   - Le rate limiting (optionnel)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cube-ingress
+  namespace: cube
+  labels:
+    app: cube-ingress
+    app.kubernetes.io/name: cube-ingress
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: gateway
+  annotations:
+    # --- Configuration Nginx ---
+    # Classe d'Ingress Controller à utiliser
+    kubernetes.io/ingress.class: nginx
+
+    # --- Réécriture des URLs ---
+    # /api/users/profile -> /profile sur le service user-service
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+
+    # --- CORS (Cross-Origin Resource Sharing) ---
+    # Autoriser les requêtes cross-origin depuis le frontend
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # --- WebSocket ---
+    # Nécessaire pour le matchmaking et les sessions en temps réel
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "session-service"
+
+    # --- Taille maximale du body ---
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+    # --- Rate Limiting (protection contre les abus) ---
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+spec:
+  # Classe d'Ingress Controller
+  ingressClassName: nginx
+  rules:
+    # Règle pour le domaine principal (adapter en production)
+    - host: cube.local
+      http:
+        paths:
+          # --- Route vers le User Service ---
+          # /api/users/* -> user-service:8001/*
+          - path: /api/users(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8001
+
+          # --- Route vers le Learning Service ---
+          # /api/lessons/* -> learning-service:8002/*
+          - path: /api/lessons(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: learning-service
+                port:
+                  number: 8002
+
+          # --- Route vers le Session Service ---
+          # /api/sessions/* -> session-service:8003/*
+          - path: /api/sessions(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: session-service
+                port:
+                  number: 8003
+
+          # --- Route par défaut vers le Frontend ---
+          # Toutes les autres requêtes vont au frontend (SPA)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+  # Configuration TLS (décommenter en production)
+  # tls:
+  #   - hosts:
+  #       - cube.local
+  #     secretName: cube-tls-secret

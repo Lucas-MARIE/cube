@@ -1,0 +1,34 @@
+{
+  "name": "cube-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cube.com - Rubik's Cube learning and practice platform frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "axios": "^1.6.2",
+    "@react-three/fiber": "^8.15.12",
+    "@react-three/drei": "^9.92.1",
+    "three": "^0.159.0",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.2",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
+    "@types/three": "^0.159.0",
+    "vite": "^5.0.7",
+    "@vitejs/plugin-react": "^4.2.1",
+    "tailwindcss": "^3.3.6",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  }
+}

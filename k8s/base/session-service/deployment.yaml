@@ -1,0 +1,130 @@
+# =============================================================================
+# Déploiement du Session Service - Gestion des sessions et matchmaking
+# =============================================================================
+# Ce service gère :
+#   - Les sessions de résolution solo
+#   - Le matchmaking pour les duels
+#   - L'enregistrement des temps (solves)
+#   - La communication temps réel via WebSocket
+# Dépendances : Redis (cache/sessions), PostgreSQL (persistance), gRPC (user-service)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session-service
+  namespace: cube
+  labels:
+    app: session-service
+    tier: backend
+    app.kubernetes.io/name: session-service
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: backend
+spec:
+  # 2 réplicas pour la haute disponibilité
+  replicas: 2
+  selector:
+    matchLabels:
+      app: session-service
+  template:
+    metadata:
+      labels:
+        app: session-service
+        tier: backend
+    spec:
+      serviceAccountName: session-service-sa
+      containers:
+        - name: session-service
+          image: cube-session-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            # Port HTTP pour l'API REST et WebSocket
+            - containerPort: 8003
+              name: http
+              protocol: TCP
+            # Port gRPC pour la communication inter-services
+            - containerPort: 50052
+              name: grpc
+              protocol: TCP
+          env:
+            # --- Configuration générale (depuis ConfigMap) ---
+            - name: SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: session-service-config
+                  key: SERVICE_PORT
+            - name: SERVICE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: session-service-config
+                  key: SERVICE_ENV
+            - name: USER_SERVICE_GRPC
+              valueFrom:
+                configMapKeyRef:
+                  name: session-service-config
+                  key: USER_SERVICE_GRPC
+            # --- Secrets (depuis Secret) ---
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: session-service-secret
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: session-service-secret
+                  key: REDIS_URL
+          # Sonde de vivacité
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          # Sonde de disponibilité
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          # Limites de ressources
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+---
+# ConfigMap pour le session-service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: session-service-config
+  namespace: cube
+  labels:
+    app: session-service
+data:
+  SERVICE_PORT: "8003"
+  SERVICE_ENV: "production"
+  GRPC_PORT: "50052"
+  LOG_LEVEL: "info"
+  # Adresse gRPC du user-service pour la validation des tokens
+  USER_SERVICE_GRPC: "user-service.cube.svc.cluster.local:50051"
+---
+# Secret pour le session-service
+# ⚠️ EXEMPLE UNIQUEMENT - Remplacer en production
+apiVersion: v1
+kind: Secret
+metadata:
+  name: session-service-secret
+  namespace: cube
+  labels:
+    app: session-service
+type: Opaque
+data:
+  # echo -n 'postgresql://cube_user:cube_pass@postgres:5432/cube_sessions' | base64
+  DATABASE_URL: cG9zdGdyZXNxbDovL2N1YmVfdXNlcjpjdWJlX3Bhc3NAcG9zdGdyZXM6NTQzMi9jdWJlX3Nlc3Npb25z
+  # echo -n 'redis://redis:6379/0' | base64
+  REDIS_URL: cmVkaXM6Ly9yZWRpczo2Mzc5LzA=

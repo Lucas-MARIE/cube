@@ -1,0 +1,31 @@
+# =============================================================================
+# Service Kubernetes pour le User Service
+# =============================================================================
+# Expose le user-service en interne dans le cluster via ClusterIP
+# Les autres services accèdent à user-service via : user-service.cube.svc.cluster.local:8001
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: cube
+  labels:
+    app: user-service
+    tier: backend
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: cube
+spec:
+  # ClusterIP = accessible uniquement depuis l'intérieur du cluster
+  type: ClusterIP
+  selector:
+    app: user-service
+  ports:
+    # Port HTTP pour l'API REST
+    - name: http
+      port: 8001
+      targetPort: 8001
+      protocol: TCP
+    # Port gRPC pour la communication inter-services
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      protocol: TCP

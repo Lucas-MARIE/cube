@@ -1,0 +1,25 @@
+# =============================================================================
+# PersistentVolumeClaim pour PostgreSQL
+# =============================================================================
+# Demande un volume persistant de 1Gi pour stocker les données PostgreSQL
+# En production, ajuster la taille et la classe de stockage selon les besoins
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: cube
+  labels:
+    app: postgres
+    tier: database
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: cube
+spec:
+  # ReadWriteOnce = un seul nœud peut monter le volume en écriture
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # 1Gi pour le développement, augmenter en production
+      storage: 1Gi
+  # Décommenter et ajuster pour spécifier une classe de stockage
+  # storageClassName: standard

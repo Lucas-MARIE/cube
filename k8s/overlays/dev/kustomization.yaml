@@ -1,0 +1,86 @@
+# =============================================================================
+# Kustomize Overlay - Environnement de Développement (dev)
+# =============================================================================
+# Cet overlay ajuste les ressources de base pour l'environnement de développement :
+#   - Réplicas réduits (1 par service au lieu de 2)
+#   - Tags d'images en 'dev'
+#   - Ressources CPU/mémoire réduites
+#   - Logs en mode debug
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace cible pour tous les objets
+namespace: cube
+
+# Référence vers les manifestes de base
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/databases/postgres-secret.yaml
+  - ../../base/databases/postgres-pvc.yaml
+  - ../../base/databases/postgres-deployment.yaml
+  - ../../base/databases/postgres-service.yaml
+  - ../../base/databases/mongo-deployment.yaml
+  - ../../base/databases/mongo-service.yaml
+  - ../../base/databases/redis-deployment.yaml
+  - ../../base/databases/redis-service.yaml
+  - ../../base/user-service/deployment.yaml
+  - ../../base/user-service/service.yaml
+  - ../../base/learning-service/deployment.yaml
+  - ../../base/learning-service/service.yaml
+  - ../../base/session-service/deployment.yaml
+  - ../../base/session-service/service.yaml
+  - ../../base/frontend/deployment.yaml
+  - ../../base/frontend/service.yaml
+  - ../../base/gateway/ingress.yaml
+
+# Labels communs ajoutés à toutes les ressources
+commonLabels:
+  environment: dev
+
+# Annotations communes
+commonAnnotations:
+  managed-by: kustomize
+  environment: development
+
+# Patches pour l'environnement de développement
+patches:
+  # --- Réduire les réplicas à 1 pour le dev ---
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: learning-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: session-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+# Surcharge des images pour utiliser les tags 'dev'
+images:
+  - name: cube-user-service
+    newTag: dev
+  - name: cube-learning-service
+    newTag: dev
+  - name: cube-session-service
+    newTag: dev
+  - name: cube-frontend
+    newTag: dev

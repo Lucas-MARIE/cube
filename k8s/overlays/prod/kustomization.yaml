@@ -1,0 +1,119 @@
+# =============================================================================
+# Kustomize Overlay - Environnement de Production (prod)
+# =============================================================================
+# Cet overlay ajuste les ressources de base pour l'environnement de production :
+#   - Réplicas augmentés pour la haute disponibilité
+#   - Tags d'images versionnés (pas 'latest')
+#   - Ressources CPU/mémoire augmentées
+#   - Logs en mode info/warn
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace cible pour tous les objets
+namespace: cube
+
+# Référence vers les manifestes de base
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/databases/postgres-secret.yaml
+  - ../../base/databases/postgres-pvc.yaml
+  - ../../base/databases/postgres-deployment.yaml
+  - ../../base/databases/postgres-service.yaml
+  - ../../base/databases/mongo-deployment.yaml
+  - ../../base/databases/mongo-service.yaml
+  - ../../base/databases/redis-deployment.yaml
+  - ../../base/databases/redis-service.yaml
+  - ../../base/user-service/deployment.yaml
+  - ../../base/user-service/service.yaml
+  - ../../base/learning-service/deployment.yaml
+  - ../../base/learning-service/service.yaml
+  - ../../base/session-service/deployment.yaml
+  - ../../base/session-service/service.yaml
+  - ../../base/frontend/deployment.yaml
+  - ../../base/frontend/service.yaml
+  - ../../base/gateway/ingress.yaml
+  - ../../security/rbac.yaml
+  - ../../security/network-policies.yaml
+
+# Labels communs pour la production
+commonLabels:
+  environment: prod
+
+# Annotations communes
+commonAnnotations:
+  managed-by: kustomize
+  environment: production
+
+# Patches pour l'environnement de production
+patches:
+  # --- Augmenter les réplicas pour la HA en production ---
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: learning-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: session-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+  # --- Augmenter les ressources en production ---
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+  - target:
+      kind: Deployment
+      name: session-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # --- Augmenter le stockage PostgreSQL en production ---
+  - target:
+      kind: PersistentVolumeClaim
+      name: postgres-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "10Gi"
+
+# Surcharge des images pour utiliser des tags versionnés en production
+images:
+  - name: cube-user-service
+    newTag: v1.0.0
+  - name: cube-learning-service
+    newTag: v1.0.0
+  - name: cube-session-service
+    newTag: v1.0.0
+  - name: cube-frontend
+    newTag: v1.0.0

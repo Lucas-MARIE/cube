@@ -1,0 +1,19 @@
+[project]
+name = "cube-learning-service"
+version = "0.1.0"
+description = "Cube.com Learning & Content Service (FastAPI + MongoDB/Beanie)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.6",
+    "motor>=3.6.0",
+    "beanie>=1.26.0",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "httpx>=0.27.2",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+

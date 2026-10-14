@@ -1,0 +1,63 @@
+# =============================================================================
+# Déploiement du Frontend - Interface utilisateur React/Next.js
+# =============================================================================
+# Ce déploiement sert l'application frontend via Nginx
+# Le frontend est un SPA (Single Page Application) buildé et servi en statique
+# Toutes les requêtes API sont proxifiées via l'Ingress vers les backends
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: cube
+  labels:
+    app: frontend
+    tier: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: frontend
+spec:
+  # 2 réplicas pour la haute disponibilité
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          # Image Nginx servant les fichiers statiques du frontend
+          image: cube-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            # Port HTTP standard Nginx
+            - containerPort: 80
+              name: http
+              protocol: TCP
+          # Sonde de vivacité - vérifie que Nginx répond
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          # Sonde de disponibilité
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          # Ressources limitées car Nginx est léger
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"

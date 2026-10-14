@@ -1,0 +1,24 @@
+# =============================================================================
+# Service Kubernetes pour Redis
+# =============================================================================
+# Expose Redis en interne dans le cluster
+# Accessible via : redis.cube.svc.cluster.local:6379
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: cube
+  labels:
+    app: redis
+    tier: database
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: cube
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP

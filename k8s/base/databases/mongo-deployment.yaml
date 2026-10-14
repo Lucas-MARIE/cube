@@ -1,0 +1,75 @@
+# =============================================================================
+# Déploiement MongoDB - Base de données documentaire
+# =============================================================================
+# MongoDB stocke les contenus pédagogiques flexibles :
+#   - Leçons et tutoriels (learning-service)
+#   - Algorithmes et méthodes de résolution
+#   - Progression des utilisateurs dans les cours
+# ⚠️ En production, utiliser MongoDB Atlas ou l'opérateur MongoDB Community
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: cube
+  labels:
+    app: mongo
+    tier: database
+    app.kubernetes.io/name: mongo
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mongo
+        tier: database
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 27017
+              name: mongo
+              protocol: TCP
+          env:
+            # Identifiants root MongoDB
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: "cube_user"
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: "cube_pass"
+            - name: MONGO_INITDB_DATABASE
+              value: "cube_learning"
+          # Sonde de vivacité via mongosh
+          livenessProbe:
+            exec:
+              command:
+                - mongosh
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          # Sonde de disponibilité
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

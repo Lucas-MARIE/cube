@@ -1,0 +1,76 @@
+# =============================================================================
+# Déploiement Redis - Cache et stockage de sessions
+# =============================================================================
+# Redis est utilisé pour :
+#   - Le cache des sessions de jeu (session-service)
+#   - La file d'attente de matchmaking
+#   - Le pub/sub pour les événements temps réel
+#   - Le stockage temporaire des scrambles en cours
+# Utilisation de l'image alpine pour réduire la surface d'attaque
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: cube
+  labels:
+    app: redis
+    tier: database
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: cube
+    app.kubernetes.io/component: cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        tier: database
+    spec:
+      containers:
+        - name: redis
+          # Image alpine pour une empreinte minimale
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          # Arguments de démarrage Redis
+          args:
+            # Activer la persistance AOF (Append Only File)
+            - "--appendonly"
+            - "yes"
+            # Limiter la mémoire maximale
+            - "--maxmemory"
+            - "128mb"
+            # Politique d'éviction : supprimer les clés les moins récemment utilisées
+            - "--maxmemory-policy"
+            - "allkeys-lru"
+          # Sonde de vivacité via redis-cli ping
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          # Sonde de disponibilité
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "192Mi"
+              cpu: "200m"

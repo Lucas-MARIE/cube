@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package cube.user;
+
+option python_package = "cube.user";
+
+// Service pour la communication inter-services
+// Utilisé par session-service pour vérifier/récupérer les infos utilisateur
+service UserService {
+  // Récupère les informations d'un utilisateur par son ID
+  rpc GetUser (GetUserRequest) returns (UserResponse);
+  // Vérifie si un token JWT est valide
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+  // Met à jour les statistiques d'un utilisateur après un solve
+  rpc UpdateStats (UpdateStatsRequest) returns (StatsResponse);
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message UserResponse {
+  string user_id = 1;
+  string username = 2;
+  string avatar_url = 3;
+  int32 rating = 4;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string username = 3;
+}
+
+message UpdateStatsRequest {
+  string user_id = 1;
+  int32 solve_time_ms = 2;
+  string scramble = 3;
+}
+
+message StatsResponse {
+  string user_id = 1;
+  int32 personal_best = 2;
+  float ao5 = 3;
+  float ao12 = 4;
+  float ao100 = 5;
+  int32 total_solves = 6;
+}

@@ -1,0 +1,357 @@
+# =============================================================================
+# Network Policies - Politiques réseau pour l'isolation des services
+# =============================================================================
+# Les Network Policies implémentent le principe de moindre privilège au niveau
+# réseau. Chaque service ne peut communiquer qu'avec les ressources nécessaires.
+# ⚠️ Nécessite un CNI compatible (Calico, Cilium, Weave Net)
+# Minikube : activer avec `minikube start --cni=calico`
+
+# =============================================================================
+# Politique par défaut : refuser tout le trafic entrant dans le namespace
+# =============================================================================
+# Toutes les connexions entrantes sont bloquées par défaut.
+# Seules les exceptions définies ci-dessous sont autorisées.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: cube
+  labels:
+    app.kubernetes.io/part-of: cube
+spec:
+  # Appliqué à tous les pods du namespace cube
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# =============================================================================
+# Frontend : accepte uniquement le trafic depuis l'Ingress Controller
+# =============================================================================
+# Le frontend est accessible uniquement via l'Ingress (pas directement)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-ingress
+  namespace: cube
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Autoriser le trafic depuis le namespace ingress-nginx
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# =============================================================================
+# User Service : accepte le trafic depuis l'Ingress et les autres services
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-ingress
+  namespace: cube
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+  ingress:
+    # Autoriser le trafic HTTP depuis l'Ingress Controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8001
+    # Autoriser les appels gRPC depuis le session-service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: session-service
+      ports:
+        - protocol: TCP
+          port: 50051
+
+---
+# =============================================================================
+# User Service : peut accéder à PostgreSQL
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-egress-postgres
+  namespace: cube
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Egress
+  egress:
+    # Autoriser la sortie vers PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Autoriser la résolution DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# =============================================================================
+# Learning Service : accepte le trafic depuis l'Ingress
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: learning-service-ingress
+  namespace: cube
+  labels:
+    app: learning-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: learning-service
+  policyTypes:
+    - Ingress
+  ingress:
+    # Autoriser le trafic HTTP depuis l'Ingress Controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8002
+
+---
+# =============================================================================
+# Learning Service : peut accéder à MongoDB
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: learning-service-egress-mongo
+  namespace: cube
+  labels:
+    app: learning-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: learning-service
+  policyTypes:
+    - Egress
+  egress:
+    # Autoriser la sortie vers MongoDB
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongo
+      ports:
+        - protocol: TCP
+          port: 27017
+    # Autoriser la résolution DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# =============================================================================
+# Session Service : accepte le trafic depuis l'Ingress
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: session-service-ingress
+  namespace: cube
+  labels:
+    app: session-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: session-service
+  policyTypes:
+    - Ingress
+  ingress:
+    # Autoriser le trafic HTTP/WebSocket depuis l'Ingress Controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8003
+
+---
+# =============================================================================
+# Session Service : peut accéder à PostgreSQL, Redis, et user-service (gRPC)
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: session-service-egress
+  namespace: cube
+  labels:
+    app: session-service
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: session-service
+  policyTypes:
+    - Egress
+  egress:
+    # Autoriser la sortie vers PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Autoriser la sortie vers Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Autoriser les appels gRPC vers user-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 50051
+    # Autoriser la résolution DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# =============================================================================
+# PostgreSQL : accepte les connexions uniquement depuis user-service et session-service
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  namespace: cube
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Seuls user-service et session-service peuvent accéder à PostgreSQL
+        - podSelector:
+            matchLabels:
+              app: user-service
+        - podSelector:
+            matchLabels:
+              app: session-service
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+# =============================================================================
+# MongoDB : accepte les connexions uniquement depuis learning-service
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongo-ingress
+  namespace: cube
+  labels:
+    app: mongo
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: mongo
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Seul le learning-service peut accéder à MongoDB
+        - podSelector:
+            matchLabels:
+              app: learning-service
+      ports:
+        - protocol: TCP
+          port: 27017
+
+---
+# =============================================================================
+# Redis : accepte les connexions uniquement depuis session-service
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-ingress
+  namespace: cube
+  labels:
+    app: redis
+    app.kubernetes.io/part-of: cube
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Seul le session-service peut accéder à Redis
+        - podSelector:
+            matchLabels:
+              app: session-service
+      ports:
+        - protocol: TCP
+          port: 6379

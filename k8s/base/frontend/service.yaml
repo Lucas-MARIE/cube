@@ -1,0 +1,24 @@
+# =============================================================================
+# Service Kubernetes pour le Frontend
+# =============================================================================
+# Expose le frontend en interne via ClusterIP
+# L'Ingress redirige le trafic externe vers ce service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cube
+  labels:
+    app: frontend
+    tier: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: cube
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
