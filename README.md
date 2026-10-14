@@ -9,7 +9,7 @@
 ```
                     ┌──────────────┐
                     │   Frontend   │  React + Three.js
-                    │  (Port 3000) │  3D Cube, Timer, Lessons
+                    │  (Port 3001) │  3D Cube, Timer, Lessons
                     └──────┬───────┘
                            │
                     ┌──────▼───────┐
@@ -36,7 +36,7 @@
 
 | Service            | Tech Stack         | Port | Description                                  |
 | ------------------ | ------------------ | ---- | -------------------------------------------- |
-| **Frontend**       | React, Three.js    | 3000 | 3D cube visualization, timer, lesson viewer  |
+| **Frontend**       | React, Three.js    | 3001 / 8080 | 3D cube visualization, timer, lesson viewer  |
 | **User Service**   | FastAPI, PostgreSQL | 8001 | Authentication, profiles, stats              |
 | **Learning Service** | FastAPI, MongoDB  | 8002 | Lessons, algorithms, scramble generation     |
 | **Session Service** | FastAPI, Redis     | 8003 | Solve sessions, timer, history tracking      |

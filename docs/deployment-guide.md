@@ -22,12 +22,26 @@ make up-dev
 make logs
 
 # 4. Accéder à l'application
-# - Frontend : http://localhost:3000
-# - API Gateway : http://localhost:8080
-# - Documentation Swagger User Service : http://localhost:8080/api/users/docs
-# - Documentation Swagger Learning Service : http://localhost:8080/api/lessons/docs
-# - Documentation Swagger Session Service : http://localhost:8080/api/sessions/docs
+# - Application Frontend (via Gateway) : http://localhost:8080/
+# - Frontend direct (Vite Dev HMR)     : http://localhost:3001/
+# - API Gateway (Reverse Proxy Nginx)  : http://localhost:8080
+# - Swagger User Service direct        : http://localhost:8001/docs
+# - Swagger Learning Service direct    : http://localhost:8002/docs
+# - Swagger Session Service direct     : http://localhost:8003/docs
 ```
+
+### Récapitulatif des Ports Locaux
+
+| Composant | Port Hôte | Port Conteneur | Rôle |
+| :--- | :--- | :--- | :--- |
+| **Nginx API Gateway** | `8080` | `8080` | Point d'entrée unique, routage et reverse proxy |
+| **Frontend React** | `3001` (dev) / `8080` (gw) | `80` | SPA Vite React + Three.js |
+| **User Service** | `8001` | `8001` | FastAPI (Auth JWT, Profils, Stats WCA) |
+| **Learning Service** | `8002` | `8002` | FastAPI (Leçons, CFOP, Scrambles) |
+| **Session Service** | `8003` | `8003` | FastAPI (Timer solo, Duels WebSocket) |
+| **PostgreSQL 16** | `5432` | `5432` | BDD relationnelle (User Service) |
+| **MongoDB 7** | `27017` | `27017` | BDD NoSQL Documents (Learning Service) |
+| **Redis 7** | `6379` | `6379` | Cache & Sessions rapides (Session Service) |
 
 Pour éteindre les services :
 ```bash

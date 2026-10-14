@@ -791,7 +791,7 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_MINUTES: int = 30
 
     # === CORS ===
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8080"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
 
     # === gRPC ===
     GRPC_PORT: int = 50051
