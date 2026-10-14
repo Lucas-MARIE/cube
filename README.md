@@ -32,15 +32,18 @@
    └─────────────┘ └─────────────┘ └──────────────┘
 ```
 
-## 🏗️ Services
+## 🏗️ Services & Ports
 
-| Service            | Tech Stack         | Port | Description                                  |
-| ------------------ | ------------------ | ---- | -------------------------------------------- |
-| **Frontend**       | React, Three.js    | 3001 / 8080 | 3D cube visualization, timer, lesson viewer  |
-| **User Service**   | FastAPI, PostgreSQL | 8001 | Authentication, profiles, stats              |
-| **Learning Service** | FastAPI, MongoDB  | 8002 | Lessons, algorithms, scramble generation     |
-| **Session Service** | FastAPI, Redis     | 8003 | Solve sessions, timer, history tracking      |
-| **API Gateway**    | Nginx              | 8080 | Reverse proxy, CORS, routing                 |
+| Service | Tech Stack | Host Port | Container Port | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **API Gateway** | Nginx | `8080` | `8080` | Reverse proxy, CORS, unified API entry point |
+| **Frontend** | React, Three.js | `3001` (dev) / `8080` (gw) | `80` | 3D cube visualization, timer, lesson viewer |
+| **User Service** | FastAPI, PostgreSQL | `8001` | `8001` | Authentication, profiles, WCA stats |
+| **Learning Service** | FastAPI, MongoDB | `8002` | `8002` | Lessons, CFOP algorithms, scramble generator |
+| **Session Service** | FastAPI, Redis | `8003` | `8003` | Solve sessions, timer, matchmaking & WebSocket |
+| **PostgreSQL** | PostgreSQL 16 | `5432` | `5432` | Relational database for user-service |
+| **MongoDB** | MongoDB 7 | `27017` | `27017` | Document database for learning-service |
+| **Redis** | Redis 7-alpine | `6379` | `6379` | In-memory store for session-service |
 
 ## 🚀 Quick Start
 
@@ -69,12 +72,13 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ```
 
 ### 3. Access the application
-
-- **App**: http://localhost:8080
-- **API Gateway**: http://localhost:8080/api
-- **User Service (direct)**: http://localhost:8001/docs
-- **Learning Service (direct)**: http://localhost:8002/docs
-- **Session Service (direct)**: http://localhost:8003/docs
+ 
+- **Web Application (via Gateway)**: http://localhost:8080/
+- **Frontend direct (Vite Dev HMR)**: http://localhost:3001/
+- **API Gateway (Reverse Proxy Nginx)**: http://localhost:8080
+- **User Service Swagger**: http://localhost:8001/docs (or via Gateway: http://localhost:8080/api/users/docs)
+- **Learning Service Swagger**: http://localhost:8002/docs (or via Gateway: http://localhost:8080/api/lessons/docs)
+- **Session Service Swagger**: http://localhost:8003/docs (or via Gateway: http://localhost:8080/api/sessions/docs)
 
 ## 🛠️ Development Commands
 
