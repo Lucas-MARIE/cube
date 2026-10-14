@@ -6,16 +6,12 @@ sécurisé des mots de passe.
 """
 from uuid import UUID
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
-
-# Contexte de hashage des mots de passe avec bcrypt
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 class UserService:
     """Service de gestion des utilisateurs.
@@ -42,7 +38,9 @@ class UserService:
         Returns:
             Le hash bcrypt du mot de passe.
         """
-        return pwd_context.hash(password)
+        pwd_bytes = password[:72].encode("utf-8")
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -55,7 +53,8 @@ class UserService:
         Returns:
             True si le mot de passe correspond, False sinon.
         """
-        return pwd_context.verify(plain_password, hashed_password)
+        pwd_bytes = plain_password[:72].encode("utf-8")
+        return bcrypt.checkpw(pwd_bytes, hashed_password.encode("utf-8"))
 
     async def create_user(self, user_data: UserCreate) -> User:
         """Créer un nouvel utilisateur en base de données.

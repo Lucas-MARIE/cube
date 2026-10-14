@@ -6,36 +6,51 @@
 import api from "./api";
 import type { Lesson, Algorithm } from "../types";
 
-/**
- * Fetch all available lessons, optionally filtered by difficulty.
- */
-export async function getLessons(difficulty?: string): Promise<Lesson[]> {
-  const params = difficulty ? { difficulty } : {};
-  const response = await api.get<Lesson[]>("/lessons/", { params });
-  return response.data;
+export interface ScrambleResponse {
+  scramble: string;
+  length: number;
+  case?: string;
 }
 
-/**
- * Fetch a single lesson by its ID.
- */
-export async function getLesson(lessonId: string): Promise<Lesson> {
-  const response = await api.get<Lesson>(`/lessons/${lessonId}`);
-  return response.data;
-}
+export const lessonService = {
+  /**
+   * Fetch all lessons with optional category filter.
+   */
+  getLessons: (category?: string) => {
+    const params = category && category !== "ALL" ? { category } : {};
+    return api.get<Lesson[]>("/lessons/lessons", { params });
+  },
 
-/**
- * Fetch all algorithms, optionally filtered by category (e.g., OLL, PLL).
- */
-export async function getAlgorithms(category?: string): Promise<Algorithm[]> {
-  const params = category ? { category } : {};
-  const response = await api.get<Algorithm[]>("/lessons/algorithms", { params });
-  return response.data;
-}
+  /**
+   * Fetch a single lesson by ID.
+   */
+  getLesson: (lessonId: string) => api.get<Lesson>(`/lessons/lessons/${lessonId}`),
 
-/**
- * Request a new random scramble sequence from the server.
- */
-export async function getScramble(): Promise<string> {
-  const response = await api.get<{ scramble: string }>("/lessons/scramble");
-  return response.data.scramble;
-}
+  /**
+   * Fetch CFOP algorithms (F2L, OLL, PLL).
+   */
+  getAlgorithms: (category?: string) => {
+    const params = category && category !== "ALL" ? { category } : {};
+    return api.get<Algorithm[]>("/lessons/algorithms", { params });
+  },
+
+  /**
+   * Request a random official WCA scramble.
+   */
+  getRandomScramble: (length: number = 20) =>
+    api.get<ScrambleResponse>("/lessons/scrambles/random", { params: { length } }),
+
+  /**
+   * Request a targeted scramble for a specific case (e.g. t-perm, sune).
+   */
+  getTargetedScramble: (caseName: string) =>
+    api.get<ScrambleResponse>("/lessons/scrambles/targeted", { params: { case: caseName } }),
+};
+
+// Also export standalone functions for backward compatibility
+export const getLessons = (category?: string) => lessonService.getLessons(category).then((res) => res.data);
+export const getLesson = (id: string) => lessonService.getLesson(id).then((res) => res.data);
+export const getAlgorithms = (category?: string) => lessonService.getAlgorithms(category).then((res) => res.data);
+export const getScramble = () => lessonService.getRandomScramble().then((res) => res.data.scramble);
+
+export default lessonService;

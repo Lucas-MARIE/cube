@@ -7,31 +7,44 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Paramètres de configuration du service utilisateur.
-
-    Toutes les valeurs peuvent être surchargées via des variables
-    d'environnement ou un fichier `.env`.
-    """
+    """Paramètres de configuration du service utilisateur."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
-    # --- Base de données ---
-    DATABASE_URL: str = "postgresql+asyncpg://cube_user:cube_password@localhost:5432/cube_users"
+    # --- PostgreSQL individuel ---
+    POSTGRES_HOST: str = "postgres"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "cube_users"
+    POSTGRES_USER: str = "cube"
+    POSTGRES_PASSWORD: str = "changeme"
+
+    # --- URL globale (générée automatiquement si absente) ---
+    DATABASE_URL: str = ""
+
+    def model_post_init(self, __context) -> None:
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = (
+                f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
 
     # --- JWT / Authentification ---
-    JWT_SECRET_KEY: str = "dev-secret-key-change-in-production"
+    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_MINUTES: int = 30
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # --- CORS ---
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
-        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://cube.local",
     ]
 
     # --- Service ---

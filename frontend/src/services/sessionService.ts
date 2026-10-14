@@ -1,51 +1,53 @@
 // ============================================================
 // Cube.com Frontend - Session Service API
-// Handles solve sessions, timer tracking, and history.
+// Handles solve sessions, timer tracking, and live matchmaking.
 // ============================================================
 
 import api from "./api";
 import type { Session } from "../types";
 
-/**
- * Start a new solving session with the given scramble.
- * Returns the created session with a server-assigned ID.
- */
-export async function startSession(scramble: string): Promise<Session> {
-  const response = await api.post<Session>("/sessions/", { scramble });
-  return response.data;
+export interface SoloSessionStartResponse {
+  session_id: string;
+  user_id: string;
+  scramble: string;
+  started_at: number;
 }
 
-/**
- * End an active session by recording the solve time and optional penalty.
- */
-export async function endSession(
-  sessionId: string,
-  durationMs: number,
-  penalty: "none" | "+2" | "DNF" = "none"
-): Promise<Session> {
-  const response = await api.put<Session>(`/sessions/${sessionId}`, {
-    duration_ms: durationMs,
-    penalty,
-  });
-  return response.data;
+export interface SoloSessionEndResponse {
+  session_id: string;
+  user_id: string;
+  solve_time_ms: number;
+  scramble: string;
+  message: string;
 }
 
-/**
- * Fetch the user's solve history, with optional pagination.
- */
-export async function getHistory(
-  page: number = 1,
-  limit: number = 20
-): Promise<Session[]> {
-  const response = await api.get<Session[]>("/sessions/history", {
-    params: { page, limit },
-  });
-  return response.data;
-}
+export const sessionService = {
+  /**
+   * Start a new solving session with a given scramble and user ID.
+   */
+  startSession: (userId: string, scramble: string) =>
+    api.post<SoloSessionStartResponse>("/sessions/solo/start", { user_id: userId, scramble }),
 
-/**
- * Delete a specific session from history.
- */
-export async function deleteSession(sessionId: string): Promise<void> {
-  await api.delete(`/sessions/${sessionId}`);
-}
+  /**
+   * End an active session by recording the solve time.
+   */
+  endSession: (sessionId: string, solveTimeMs: number) =>
+    api.post<SoloSessionEndResponse>("/sessions/solo/end", {
+      session_id: sessionId,
+      solve_time_ms: solveTimeMs,
+    }),
+
+  /**
+   * Join ranked matchmaking queue.
+   */
+  joinMatchmaking: (userId: string, rating: number = 1200) =>
+    api.post("/sessions/matchmaking/join", { user_id: userId, rating }),
+
+  /**
+   * Leave matchmaking queue.
+   */
+  leaveMatchmaking: (userId: string) =>
+    api.delete(`/sessions/matchmaking/leave?user_id=${userId}`),
+};
+
+export default sessionService;

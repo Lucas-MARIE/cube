@@ -86,6 +86,14 @@ up-dev: ## Start all services in development mode with hot-reload
 	$(COMPOSE_DEV) up -d
 	@echo "Cube.com (dev) is running at http://localhost:8080"
 
+up-user: ## Start only user-service + postgres (Objectif 10/20 - ultra léger en RAM)
+	$(COMPOSE_DEV) up -d user-service postgres
+	@echo "User Service is running at http://localhost:8001"
+
+up-two-services: ## Start 2 services + gateway + DBs (Objectif 14/20)
+	$(COMPOSE_DEV) up -d user-service postgres learning-service mongodb nginx-gateway
+	@echo "Services running via Gateway at http://localhost:8080"
+
 down: ## Stop all services and remove containers
 	$(COMPOSE) down
 

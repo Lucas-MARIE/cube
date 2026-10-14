@@ -6,53 +6,81 @@
 import api from "./api";
 import type {
   User,
-  AuthResponse,
   LoginCredentials,
   RegisterPayload,
   Stats,
 } from "../types";
 
-/**
- * Log in with email and password.
- * Stores the JWT token in localStorage on success.
- */
-export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
-  const response = await api.post<AuthResponse>("/users/login", credentials);
-  // Persist the token for subsequent requests
-  localStorage.setItem("access_token", response.data.access_token);
-  return response.data;
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
 }
 
-/**
- * Register a new user account.
- * Automatically logs in on successful registration.
- */
-export async function register(payload: RegisterPayload): Promise<AuthResponse> {
-  const response = await api.post<AuthResponse>("/users/register", payload);
-  localStorage.setItem("access_token", response.data.access_token);
-  return response.data;
-}
+export const userService = {
+  /**
+   * Authenticate a user and store JWT token.
+   */
+  login: async (email: string, password: string) => {
+    const res = await api.post<TokenResponse>("/users/v1/auth/login", { email, password });
+    if (res.data?.access_token) {
+      localStorage.setItem("access_token", res.data.access_token);
+    }
+    return res;
+  },
 
-/**
- * Fetch the authenticated user's profile.
- */
-export async function getProfile(): Promise<User> {
-  const response = await api.get<User>("/users/profile");
-  return response.data;
-}
+  /**
+   * Register a new user and automatically log them in.
+   */
+  register: async (payload: RegisterPayload) => {
+    // 1. Create account
+    await api.post<User>("/users/v1/auth/register", payload);
+    // 2. Obtain JWT token
+    const loginRes = await api.post<TokenResponse>("/users/v1/auth/login", {
+      email: payload.email,
+      password: payload.password,
+    });
+    if (loginRes.data?.access_token) {
+      localStorage.setItem("access_token", loginRes.data.access_token);
+    }
+    return loginRes;
+  },
 
-/**
- * Fetch the authenticated user's solving statistics.
- */
-export async function getStats(): Promise<Stats> {
-  const response = await api.get<Stats>("/users/stats");
-  return response.data;
-}
+  /**
+   * Fetch current authenticated user profile.
+   */
+  getProfile: () => api.get<User>("/users/v1/users/me"),
 
-/**
- * Log out the current user by clearing the stored token.
- */
-export function logout(): void {
-  localStorage.removeItem("access_token");
-  window.location.href = "/login";
-}
+  /**
+   * Fetch user solving stats (PB, AO5, AO12, total solves).
+   */
+  getStats: () => api.get<Stats>("/users/v1/stats/me/stats"),
+
+  /**
+   * Record a new solve time.
+   */
+  recordSolve: (time_ms: number, scramble: string) =>
+    api.post("/users/v1/stats/me/solves", { time_ms, scramble }),
+
+  /**
+   * Fetch unlocked achievements.
+   */
+  getAchievements: () => api.get("/users/v1/stats/me/achievements"),
+
+  /**
+   * Log out user and redirect to login.
+   */
+  logout: () => {
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
+  },
+};
+
+// Also export standalone functions for backward compatibility
+export const login = (creds: LoginCredentials) => userService.login(creds.email, creds.password);
+export const register = (payload: RegisterPayload) => userService.register(payload);
+export const getProfile = () => userService.getProfile().then((res) => res.data);
+export const getStats = () => userService.getStats().then((res) => res.data);
+export const logout = userService.logout;
+
+export default userService;

@@ -8,9 +8,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Configure npm for robust network retries in Docker
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000
+
 # Copy package files first for better Docker layer caching
 COPY package.json package-lock.json* ./
-RUN npm ci --silent
+RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 
 # Copy source code and build
 COPY . .

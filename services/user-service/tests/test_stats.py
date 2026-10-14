@@ -44,7 +44,7 @@ async def test_get_stats_slice_with_mock(client, mock_current_user):
 
     try:
         # 3. Exécution de la requête HTTP
-        response = await client.get("/me/stats")
+        response = await client.get("/v1/stats/me/stats")
 
         # 4. Vérification du contrat HTTP et structure JSON (équivalent MockMvc andExpect)
         assert response.status_code == 200
